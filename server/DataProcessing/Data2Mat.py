@@ -76,8 +76,6 @@ def calc_matrix():
                 mat[points_id[0] - 1][points_id[1] - 1][6] += 1
         if row % 100000 == 0:
             print row
-        if row == 100000:
-            break
 
     # Writing to output file
     print 'Writing to file'
