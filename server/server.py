@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!"C:\Python27\python.exe"
 import cgi
 import csv
 
@@ -16,9 +16,9 @@ elif request == 'DATA':
     # Open the data file
     matrix = 'map2/matrix24' if cgi.FieldStorage().getvalue('map_id') == '1' else 'map/HW_matrix'
     if cgi.FieldStorage().getvalue('is_home') == 'true':
-        f = open(r'/home/users/web/b337/moo.ifelcoil/' + matrix + 'H.csv', 'rb')
+        f = open(r'F:/github/TravelMap/server/Data' + matrix + 'H.csv', 'rb')
     else:
-        f = open(r'/home/users/web/b337/moo.ifelcoil/' + matrix + 'W.csv', 'rb')
+        f = open(r'F:/github/TravelMap/server/Data' + matrix + 'W.csv', 'rb')
 
     # Send shortened data to client
     reader = csv.reader(f, delimiter='|')
