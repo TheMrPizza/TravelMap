@@ -166,6 +166,59 @@
     animation: spin 0.8s linear infinite;
 }
   
+/* Language selector */
+.language-selector {
+    position: absolute;
+    top: 20px;
+    right: 60px;
+    z-index: 1000;
+}
+
+.language-selector input {
+    margin:0;
+    padding:0;
+    -webkit-appearance:none;
+       -moz-appearance:none;
+            appearance:none;
+}
+
+.israel { 
+    background-image:url(https://cdnjs.cloudflare.com/ajax/libs/flag-icon-css/3.4.3/flags/4x3/il.svg);
+}
+.usa {
+    background-image:url(https://cdnjs.cloudflare.com/ajax/libs/flag-icon-css/3.4.3/flags/4x3/us.svg);
+}
+
+.language-selector input:active + .language-ico {
+     opacity: .9;
+}
+
+.language-selector input:checked + .language-ico {
+    -webkit-filter: none;
+       -moz-filter: none;
+            filter: none;
+}
+
+.language-ico {
+    cursor: pointer;
+    background-size: contain;
+    background-repeat: no-repeat;
+    display: inline-block;
+    width: 25px;
+    height: 25px;
+    -webkit-transition: all 100ms ease-in;
+       -moz-transition: all 100ms ease-in;
+            transition: all 100ms ease-in;
+    -webkit-filter: brightness(1.8) grayscale(1) opacity(1);
+       -moz-filter: brightness(1.8) grayscale(1) opacity(1);
+            filter: brightness(1.8) grayscale(1) opacity(1);
+}
+.language-ico:hover {
+    -webkit-filter: brightness(1) grayscale(0) opacity(1);
+       -moz-filter: brightness(1) grayscale(0) opacity(1);
+            filter: brightness(1) grayscale(0) opacity(1);
+}
+
 /* Safari */
 @-webkit-keyframes spin {
     0% { -webkit-transform: rotate(0deg); }
