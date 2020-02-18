@@ -1,6 +1,10 @@
-// Work & Home Map Visualization with different day times
+// Work & Home Map Visualization by day times
 var map_id = 1;
-var filter = 9; // day_time
+var map_filters = {
+	day_time: 9,
+	agg_origin: 33,
+	agg_destination: 33
+};
 
 function calcPassengers(feature) {
 	/**
@@ -10,115 +14,167 @@ function calcPassengers(feature) {
 	var sum = 0;
 	for (var i in clicked_layers) {
 		var cur_id = geo.getLayer(clicked_layers[i]).feature.properties['ID'];
-		if (filter == 8) // Morning (6 AM + 7 AM + 8 AM)
-			sum += data[is_home][cur_id][feature.properties['ID']-1].slice(0, 3).reduce((a, b) => a + b);
-		else if (filter == 9) // All Day
-			sum += data[is_home][cur_id][feature.properties['ID']-1].reduce((a, b) => a + b);
+		var row_idx = feature.properties['Idx']-1;
+		if (row_idx > data[is_home][cur_id].length)
+			row_idx = data[is_home][cur_id].length - 1;
+		if (map_filters.day_time == 8) // Morning (6 AM + 7 AM + 8 AM)
+			sum += data[is_home][cur_id][row_idx].slice(0, 3).reduce((a, b) => a + b);
+		else if (map_filters.day_time == 9) // All Day
+			sum += data[is_home][cur_id][row_idx].reduce((a, b) => a + b);
 		else // Specific day time
-			sum += data[is_home][cur_id][feature.properties['ID']-1][filter];
+			sum += data[is_home][cur_id][row_idx][map_filters.day_time];
 	}
 	feature.properties['passengers'] = sum;
 }
 
-function createLegendControl() {
-	/**
-	 * Create the legend control containing the legend and the control panel
-	 */
-	legend = L.control({position: 'bottomleft'});
-	legend.onAdd = function(map) {
-		this.div = L.DomUtil.create('div', 'd');
-		this.div.setAttribute('style', 'display: flex');
-		this.box = L.DomUtil.create('div', 'box', this.div);
-		this.legend = L.DomUtil.create('div', 'legend', this.box);
-		this.legend.setAttribute('id', 'legend');
-		this.legend.innerHTML = '<div class="row">' +
-									'<button class="button2" id=2 onClick="toggleLegend(this.id)">8</button>' +
-									'<button class="button3" id=1 onClick="toggleLegend(this.id)">7</button>' +
-									'<button class="button4" id=0 onClick="toggleLegend(this.id)">6</button>' +
-									'<button class="button1" id=8 onClick="toggleLegend(this.id)">בוקר</button>' +
-								'</div><div class="row">' +
-									'<button class="button" id=4 onClick="toggleLegend(this.id)">אחה"צ</button>' +
-									'<button class="button" id=3 onClick="toggleLegend(this.id)">צהריים</button>' +
-								'</div><div class="row">' +
-									'<button class="button" id=9 onClick="toggleLegend(this.id)">יממה</button>' +
-									'<button class="button" id=6 onClick="toggleLegend(this.id)">לילה</button>' +
-									'<button class="button" id=5 onClick="toggleLegend(this.id)">ערב</button>' +
-								'</div><div align="right" id="text" class="text">' + 
-									'<tag id="tag">אזורי התנועה שסומנו<br>הם <b>' + (is_home ? 'מוצאים' : 'יעדים') + '</b></tag>' + 
-									'<label class="switch"><input type="checkbox" id="switchHome" onclick="toggle(this.id)" checked><span class="slider round"></span></label><br><div style="padding-top: 1px"></div>' + 
-									'הצג רדיוסים<label class="switch"><input type="checkbox" id="switchRings" onclick="toggle(this.id)"><span class="slider round"></span></label>' + 
-								'</div>';
-		var labels = [0].concat(passengers);
-		this.colors = L.DomUtil.create('div', 'colors', this.legend);
-		for (var i = 1; i < labels.length; i++) {
-			this.colors.innerHTML += '<div style="height: 1.5em"><i style="background: ' + getColor(labels[i] + 1, false, true) + '"></i> ' +
-				labels[i] + (labels[i + 1] ? '&ndash;' + labels[i + 1] : '+') + '</div>';
-		}
-		this.table = L.DomUtil.create('div', 'table', this.box);
-		this.table.setAttribute('id', 'table');
-		this.table.setAttribute('dir', 'rtl');
-		this.expand = L.DomUtil.create('div', 'expand', this.div);
-		this.expand.setAttribute('id', 'expand');
-		this.expand.setAttribute('onClick', 'toggleLegend("expand")');
-		this.expand.innerHTML = '<i class="arrow right"></i>';
-		this.is_expanded = false;
-		return this.div;
-	};
-	legend.addTo(map);
-	this.table.style.height = document.getElementById('legend').offsetHeight;
-
-	legend.update = function() {
-		L.DomUtil.get('tag').innerHTML = 'אזורי התנועה שסומנו<br>הם <b>' + (is_home ? 'מוצאים' : 'יעדים') + '</b>';
-		var labels = [0].concat(passengers);
-		this.colors.innerHTML = '';
-		for (var i = 1; i < labels.length; i++) {
-			this.colors.innerHTML += '<div style="height: 1.5em"><i style="background:' + getColor(labels[i] + 1, false, true) + '"></i> ' +
-				labels[i] + (labels[i + 1] ? '&ndash;' + labels[i + 1] : '+') + '</div>';
-		}
-		var html = '<table id="top10"><tr>' +
-					   "<th style='width: 50px'>מס' אזור התנועה</th>" + 
-					   '<th>שם אזור התנועה</th>' + 
-					   "<th style='width: 50px'>מרחק אווירי (מ')</th>" + 
-					   '<th style="width: 30px">כמות נסיעות</th></tr>';
-		for (var i in top10) {
-			var properties = geo.getLayer(top10[i]).feature.properties;
-			var name = properties['name'].length > 25 ? properties['name'].slice(0, 25) + '...' : properties['name'];
-			html += '<tr><td>' + properties['ID'] + '</td>' + 
-						'<td>' + name + '</td>' + 
-						'<td>' + parseInt(properties['distance'] * 1000) + '</td>' + 
-						'<td>' + properties['passengers'] + '</td></tr>';
-		}
-		this.table.innerHTML = html + '</table>';
-	}
+function getMapFiltersHtml() {
+	let html = '';
+	let currentTextAlignment = LANG[currentLang].props.alignment;
+	
+	if (currentTextAlignment == 'right')
+		html = getFiltersRightHtml();
+	else
+		html = getFiltersLeftHtml();
+	
+	return html;
 }
 
-function toggleLegend(id) {
-	/**
-	 * Change the buttons style when a button in the legend control is clicked
-	 * @param {String/Integer} id The button ID
-	 */
-	if (id == "expand") {
-		legend.update();
-		if (legend.is_expanded) {
-			document.getElementById("table").style.maxWidth = "0px";
-			document.getElementById("legend").style.borderRight = "0";
-			document.getElementById("legend").style.borderRadius = "5px";
-			document.getElementById("expand").innerHTML = '<i class="arrow right"></i>';
-		}
-		else {
-			document.getElementById("table").style.maxWidth = "1000px";
-			document.getElementById("legend").style.borderRight = "1px solid #cccccc";
-			document.getElementById("legend").style.borderRadius = "5px 0px 0px 5px";
-			document.getElementById("expand").innerHTML = '<i class="arrow left"></i>';
-		}
-		legend.is_expanded = !legend.is_expanded;
-	}
-	else {
-		document.getElementById(filter).style.color = 'black';
-		document.getElementById(filter).style.backgroundColor = '#ccc';
-		document.getElementById(id).style.color = 'white';
-		document.getElementById(id).style.backgroundColor = '#2196F3';
-		filter = id;
-		restyleMap(false);
-	}
+function getFiltersRightHtml() {
+	let html = '<div class="row swap filters">' +
+					'<button class="right-button2" id="day_time2" data-filter="day_time" data-value=2>8</button>' +
+					'<button class="right-button3" id="day_time1" data-filter="day_time" data-value=1>7</button>' +
+					'<button class="right-button4" id="day_time0" data-filter="day_time" data-value=0>6</button>' +
+					'<button class="right-button1" id="day_time8" data-filter="day_time" data-value=8>' + LANG[currentLang].Morning + '</button>' +
+				'</div><div class="row swap filters">' +
+					'<button class="button" id="day_time4" data-filter="day_time" data-value=4>' + LANG[currentLang].Afternoon + '</button>' +
+					'<button class="button" id="day_time3" data-filter="day_time" data-value=3>' + LANG[currentLang].Noon + '</button>' +
+				'</div><div class="row swap filters">' +
+					'<button class="button" id="day_time9" data-filter="day_time" data-value=9>' + LANG[currentLang].All_day + '</button>' +
+					'<button class="button" id="day_time6" data-filter="day_time" data-value=6>' + LANG[currentLang].Night + '</button>' +
+					'<button class="button" id="day_time5" data-filter="day_time" data-value=5>' + LANG[currentLang].Evening + '</button>' +
+				'</div><div align="right" id="text" class="text">' + 
+					'<tag id="tag-home-dest">' + LANG[currentLang].Marked_traffic_areas + '<br>' + LANG[currentLang].Are + ' <b>' + (is_home ? LANG[currentLang].Origin : LANG[currentLang].Destination) + '</b></tag>' + 
+					'<label class="switch-right"><input type="checkbox" id="switch_home" checked><span class="slider round"></span></label><br>' + 
+					'<tag id="tag-radius">' + LANG[currentLang].Show_radius + '</tag><label class="switch-right"><input type="checkbox" id="switch_rings"><span class="slider round"></span></label><br>' + 
+					'<tag id="tag-multiselect">' + LANG[currentLang].Multiselect + '</tag><label class="switch-right"><input type="checkbox" id="switch_multiselect" class="agg-group"><span class="slider round"></span></label><br>' + 
+					'<tag id="tag-dist-graph">' + LANG[currentLang].Show_dist_graph + '</tag><label class="switch-right"><input type="checkbox" id="switch_dist_graph" class="agg-group"><span class="slider round"></span></label>' + 
+				'</div>';
+	return html + getAggregationFiltersRightHtml();
+}
+
+function getAggregationFiltersRightHtml() {
+	return '<div align="' + LANG[currentLang].props.alignment + '" id="text" class="text">' + 
+				'<div class="swap">' +
+					'<button class="button" id="aggregation-reset">' + 
+					LANG[currentLang].Reset + '</button>' +
+					'<tag id="tag-agg-label">' + LANG[currentLang].Aggregation_level + '</tag></div>' +
+				'<tag id="tag-origin"><b>' + LANG[currentLang].Agg_origin + '</b></tag>' + 
+				'<div class="row swap filters-aggregation">' + 
+					'<button class="' + LANG[currentLang].props.alignment + '-button" id="agg_origin2630" data-filter="agg_origin" data-value=2630>2630</button>' +
+					'<button class="' + LANG[currentLang].props.alignment + '-button" id="agg_origin1250" data-filter="agg_origin" data-value=1250>1250</button>' +
+					'<button class="' + LANG[currentLang].props.alignment + '-button" id="agg_origin250" data-filter="agg_origin" data-value=250>250</button>' +
+					'<button class="' + LANG[currentLang].props.alignment + '-button" id="agg_origin33" data-filter="agg_origin" data-value=33>33</button>' +
+				'</div><div style="padding-top: 1px"></div>' +
+				'<tag id="tag-destination"><b>' + LANG[currentLang].Agg_destination + '</b></tag>' +
+				'<div class="row swap filters-aggregation">' + 
+					'<button class="' + LANG[currentLang].props.alignment + '-button" id="agg_destination2630" data-filter="agg_destination" data-value=2630>2630</button>' +
+					'<button class="' + LANG[currentLang].props.alignment + '-button" id="agg_destination1250" data-filter="agg_destination" data-value=1250>1250</button>' +
+					'<button class="' + LANG[currentLang].props.alignment + '-button" id="agg_destination250" data-filter="agg_destination" data-value=250>250</button>' +
+					'<button class="' + LANG[currentLang].props.alignment + '-button" id="agg_destination33" data-filter="agg_destination" data-value=33>33</button>' +
+				'</div>' +
+			'</div>';
+}
+
+function getFiltersLeftHtml() {
+	let html = '<div class="row swap filters">' +
+					'<button class="left-button1" id="day_time8" data-filter="day_time" data-value=8>' + LANG[currentLang].Morning + '</button>' +
+					'<button class="left-button4" id="day_time0" data-filter="day_time" data-value=0>6</button>' +
+					'<button class="left-button3" id="day_time1" data-filter="day_time" data-value=1>7</button>' +
+					'<button class="left-button2" id="day_time2" data-filter="day_time" data-value=2>8</button>' +
+				'</div><div class="row swap filters">' +
+					'<button class="button" id="day_time3" data-filter="day_time" data-value=3>' + LANG[currentLang].Noon + '</button>' +
+					'<button class="button" id="day_time4" data-filter="day_time" data-value=4>' + LANG[currentLang].Afternoon + '</button>' +
+				'</div><div class="row swap filters">' +
+					'<button class="button" id="day_time5" data-filter="day_time" data-value=5>' + LANG[currentLang].Evening + '</button>' +
+					'<button class="button" id="day_time6" data-filter="day_time" data-value=6>' + LANG[currentLang].Night + '</button>' +
+					'<button class="button" id="day_time9" data-filter="day_time" data-value=9>' + LANG[currentLang].All_day + '</button>' +
+				'</div><div align="left" id="text" class="text">' + 
+					'<tag id="tag-home-dest">' + LANG[currentLang].Marked_traffic_areas + '<br>' + LANG[currentLang].Are + ' <b>' + (is_home ? LANG[currentLang].Origin : LANG[currentLang].Destination) + '</b></tag>' + 
+					'<label class="switch-left"><input type="checkbox" id="switch_home" checked><span class="slider round"></span></label><br>' + 
+					'<label class="switch-left"><input type="checkbox" id="switch_rings"><span class="slider round"></span></label><tag id="tag-radius">' + LANG[currentLang].Show_radius + '</tag><br>' +
+					'<label class="switch-left"><input type="checkbox" id="switch_multiselect" class="agg-group"><span class="slider round"></span></label><tag id="tag-multiselect">' + LANG[currentLang].Multiselect + '</tag><br>' + 
+					'<label class="switch-left"><input type="checkbox" id="switch_dist_graph" class="agg-group"><span class="slider round"></span></label><tag id="tag-dist-graph">' + LANG[currentLang].Show_dist_graph + '</tag>' +
+				'</div>';
+	return html + getAggregationFiltersLeftHtml();
+}
+
+function getAggregationFiltersLeftHtml() {
+	return '<div align="' + LANG[currentLang].props.alignment + '" id="text" class="text">' + 
+				'<div class="swap">' +
+					'<tag id="tag-agg-label">' + LANG[currentLang].Aggregation_level + '</tag>' +
+					'<button class="button" id="aggregation-reset">' + 
+					LANG[currentLang].Reset + '</button></div>' +
+				'<tag id="tag-origin"><b>' + LANG[currentLang].Agg_origin + '</b></tag>' + 
+				'<div class="row swap filters-aggregation">' + 
+					'<button class="' + LANG[currentLang].props.alignment + '-button" id="agg_origin33" data-filter="agg_origin" data-value=33>33</button>' +
+					'<button class="' + LANG[currentLang].props.alignment + '-button" id="agg_origin250" data-filter="agg_origin" data-value=250>250</button>' +
+					'<button class="' + LANG[currentLang].props.alignment + '-button" id="agg_origin1250" data-filter="agg_origin" data-value=1250>1250</button>' +
+					'<button class="' + LANG[currentLang].props.alignment + '-button" id="agg_origin2630" data-filter="agg_origin" data-value=2630>2630</button>' +
+				'</div><div style="padding-top: 1px"></div>' +
+				'<tag id="tag-destination"><b>' + LANG[currentLang].Agg_destination + '</b></tag>' +
+				'<div class="row swap filters-aggregation">' + 
+					'<button class="' + LANG[currentLang].props.alignment + '-button" id="agg_destination33" data-filter="agg_destination" data-value=33>33</button>' +
+					'<button class="' + LANG[currentLang].props.alignment + '-button" id="agg_destination250" data-filter="agg_destination" data-value=250>250</button>' +
+					'<button class="' + LANG[currentLang].props.alignment + '-button" id="agg_destination1250" data-filter="agg_destination" data-value=1250>1250</button>' +
+					'<button class="' + LANG[currentLang].props.alignment + '-button" id="agg_destination2630" data-filter="agg_destination" data-value=2630>2630</button>' +
+				'</div>' +
+			'</div>';
+}
+
+function localizeText() {
+	L.DomUtil.get('tag-home-dest').innerHTML = LANG[currentLang].Marked_traffic_areas + '<br>' + LANG[currentLang].Are + ' <b>' + (is_home ? LANG[currentLang].Origin : LANG[currentLang].Destination) + '</b>';
+	L.DomUtil.get('tag-radius').innerHTML = LANG[currentLang].Show_radius;
+	L.DomUtil.get('tag-agg-label').innerHTML = LANG[currentLang].Aggregation_level;
+	L.DomUtil.get('tag-origin').innerHTML = '<b>' + LANG[currentLang].Agg_origin + '</b>';
+	L.DomUtil.get('tag-destination').innerHTML = '<b>' + LANG[currentLang].Agg_destination + '</b>';
+	L.DomUtil.get('aggregation-reset').innerHTML = LANG[currentLang].Reset;
+
+	L.DomUtil.get("day_time8").innerText = LANG[currentLang].Morning;
+	L.DomUtil.get("day_time4").innerText = LANG[currentLang].Afternoon;
+	L.DomUtil.get("day_time3").innerText = LANG[currentLang].Noon;
+	L.DomUtil.get("day_time5").innerText = LANG[currentLang].Evening;
+	L.DomUtil.get("day_time6").innerText = LANG[currentLang].Night;
+	L.DomUtil.get("day_time9").innerText = LANG[currentLang].All_day;
+}
+
+function toggleControlsDirection() {
+	revertFiltersOrder();
+	toggleSwitchAlignment();
+	toggleContainersAlignment();
+}
+
+function toggleSwitchAlignment() {
+	$('.swap').first().children().each(function(i, btn) {
+		var classList = $(btn).attr('class').split(/\s+/);
+		$.each(classList, function(index, c) {
+			if (c.startsWith('right-button')) {
+				$(btn).toggleClass(c);
+				$(btn).toggleClass(c.replace(/^right/g, 'left'));
+				return false;
+			}
+
+			if (c.startsWith('left-button')) {
+				$(btn).toggleClass(c);
+				$(btn).toggleClass(c.replace(/^left/g, 'right'));
+				return false;
+			}
+		});
+	});
+}
+
+function toggleAggreationFilters(disabled) {
+	$('.filters-aggregation > button').each((i, btn) => {
+		btn.disabled = disabled;
+		btn.title = btn.disabled ? LANG[currentLang].Disable_multiselect : "";
+	});
 }

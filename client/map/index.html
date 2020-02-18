@@ -14,17 +14,18 @@
     <link rel="stylesheet" href="../style.css"/>
     <script src="https://unpkg.com/jsts@2.0.8/dist/jsts.min.js"></script>
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
-    <script src='https://dl.dropbox.com/s/ap449g4go719x83/polygons2.js'></script>
+    <script src='../polygons2_2630.js'></script>
+    <script src='../polygons2-names-dict.js'></script>
+    <script src="../localization.js"></script>
 </head>
 <body>
     <div id="mapid"></div>
-    <div class="cc-selector">
-        <input checked="checked" id="ln-hebrew" type="radio" name="language" value="he" />
-        <label class="language-cc israel" for="ln-hebrew"></label>
-        <input id="ln-english" type="radio" name="language" value="en" />
-        <label class="language-cc usa" for="ln-english"></label>
+    <div class="language-selector">
+        <a href="#he" class="language-ico israel" id="switch-language-he" data-language="he"></a>
+        <a href="#en" class="language-ico usa" id="switch-language-en" data-language="en"></a>
     </div>
     <script src="map.js"></script>
-    <script src="../common.js"></script>
+    <script src="../map_utils.js"></script>
+    <script src="../app.js"></script>
 </body>
 </html>

@@ -38,7 +38,9 @@
     align-content: center;
 }
 
-.button {
+.button,
+.left-button,
+.right-button {
     background-color: #ccc;
     color: black;
     border: 2px solid rgba(255,255,255,0.8);
@@ -51,42 +53,88 @@
     transition: .4s;
 }
 
-.button1,
-.button2,
-.button3,
-.button4 {
+.left-button:disabled,
+.right-button:disabled {
+    opacity: 0.5;
+}
+
+.left-button1,
+.left-button2,
+.left-button3,
+.left-button4,
+.right-button1,
+.right-button2,
+.right-button3,
+.right-button4 {
     position: relative;
     background-color: #ccc;
     border: 2px solid rgba(255,255,255,0.8);
     height: 21px;
     font-size: 12px;
     cursor: pointer;
+}
+
+.right-button1,
+.right-button2,
+.right-button3,
+.right-button4 {
     border-top-left-radius: 17px;
     border-bottom-left-radius: 17px;
 }
 
-.button1 {
+.left-button1,
+.left-button2,
+.left-button3,
+.left-button4 {
+    border-top-right-radius: 17px;
+    border-bottom-right-radius: 17px;
+}
+
+.right-button1 {
     z-index: 4;
     border-radius: 17px;
-    right: 9px;
+    right: 19px;
 }
 
-.button2 {
-    left: 9px;
+.right-button2 {
     z-index: 1;
+    left: 20px;
     width: 25px;
-
 }
 
-.button3 {
+.right-button3 {
     z-index: 2;
-    left: 3px;
+    left: 8px;
     width: 25px;
 }
 
-.button4 {
+.right-button4 {
     z-index: 3;
-    right: 3px;
+    right: 6px;
+    width: 25px;
+}
+
+.left-button1 {
+    z-index: 4;
+    border-radius: 17px;
+    left: 15px;
+}
+
+.left-button2 {
+    z-index: 1;
+    right: 15px;
+    width: 25px;
+}
+
+.left-button3 {
+    z-index: 2;
+    right: 5px;
+    width: 25px;
+}
+
+.left-button4 {
+    z-index: 3;
+    left: 5px;
     width: 25px;
 }
 
@@ -169,17 +217,9 @@
 /* Language selector */
 .language-selector {
     position: absolute;
-    top: 20px;
-    right: 60px;
+    bottom: 25px;
+    right: 13px;
     z-index: 1000;
-}
-
-.language-selector input {
-    margin:0;
-    padding:0;
-    -webkit-appearance:none;
-       -moz-appearance:none;
-            appearance:none;
 }
 
 .israel { 
@@ -189,11 +229,11 @@
     background-image:url(https://cdnjs.cloudflare.com/ajax/libs/flag-icon-css/3.4.3/flags/4x3/us.svg);
 }
 
-.language-selector input:active + .language-ico {
+.language-selector a.language-ico:hover {
      opacity: .9;
 }
 
-.language-selector input:checked + .language-ico {
+.language-selector a.checked {
     -webkit-filter: none;
        -moz-filter: none;
             filter: none;
@@ -205,7 +245,7 @@
     background-repeat: no-repeat;
     display: inline-block;
     width: 25px;
-    height: 25px;
+    height: 20px;
     -webkit-transition: all 100ms ease-in;
        -moz-transition: all 100ms ease-in;
             transition: all 100ms ease-in;
@@ -268,10 +308,27 @@
     margin: 0 0 0 0;
 }
 
-.switch {
-    position: relative;
+.switch-right {
     float: left;
     margin-left: 2px;
+}
+
+.switch-left {
+    float: right;
+    margin-right: 2px;
+}
+
+.float-left {
+    float: left;
+}
+
+.float-right {
+    float: right;
+}
+
+.switch-left, 
+.switch-right {
+    position: relative;
     width: 30px;
     height: 17px;
 }
@@ -280,7 +337,8 @@
     margin-bottom: 6px;
 }
   
-.switch input { 
+.switch-right input,
+.switch-left input { 
     opacity: 0;
     width: 0;
     height: 0;
