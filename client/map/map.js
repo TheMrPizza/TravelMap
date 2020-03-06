@@ -38,8 +38,8 @@ function getFiltersRightHtml() {
 				'<button class="button" id="source2" data-filter="source" data-value=2>' + LANG[currentLang].Cellcom + '</button>' +
 			'</div><div align="right" id="text" class="text">' + 
 				'<tag id="tag-home-dest">' + LANG[currentLang].Marked_traffic_areas + '<br>' + LANG[currentLang].Are + ' <b>' + (is_home ? LANG[currentLang].Origin : LANG[currentLang].Destination) + '</b></tag>' + 
-				'<label class="switch-right"><input type="checkbox" id="switchHome" onclick="toggleHomeDestination(this.id)" checked><span class="slider round"></span></label><br><div style="padding-top: 1px"></div>' + 
-				'<tag id="tag-radius">' + LANG[currentLang].Show_radius + '</tag><label class="switch-right"><input type="checkbox" id="switchRings" onclick="toggleHomeDestination(this.id)"><span class="slider round"></span></label>' + 
+				'<label class="switch-right"><input type="checkbox" id="switch_home" checked><span class="slider round"></span></label><br><div style="padding-top: 1px"></div>' + 
+				'<tag id="tag-radius">' + LANG[currentLang].Show_radius + '</tag><label class="switch-right"><input type="checkbox" id="switch_rings""><span class="slider round"></span></label>' + 
 			'</div>';
 }
 
@@ -52,8 +52,8 @@ function getFiltersLeftHtml() {
 				'<button class="button" id="source3" data-filter="source" data-value=3>' + LANG[currentLang].Cellular + '</button>' +
 			'</div><div align="left" id="text" class="text">' + 
 				'<tag id="tag-home-dest">' + LANG[currentLang].Marked_traffic_areas + '<br>' + LANG[currentLang].Are + ' <b>' + (is_home ? LANG[currentLang].Origin : LANG[currentLang].Destination) + '</b></tag>' + 
-				'<label class="switch-left"><input type="checkbox" id="switchHome" onclick="toggleHomeDestination(this.id)" checked><span class="slider round"></span></label><br><div style="padding-top: 1px"></div>' + 
-				'<label class="switch-left"><input type="checkbox" id="switchRings" onclick="toggleHomeDestination(this.id)"><span class="slider round"></span></label><tag id="tag-radius">' + LANG[currentLang].Show_radius + '</tag>' +
+				'<label class="switch-left"><input type="checkbox" id="switch_home" checked><span class="slider round"></span></label><br><div style="padding-top: 1px"></div>' + 
+				'<label class="switch-left"><input type="checkbox" id="switch_rings"><span class="slider round"></span></label><tag id="tag-radius">' + LANG[currentLang].Show_radius + '</tag>' +
 			'</div>';
 }
 

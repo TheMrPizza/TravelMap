@@ -10,14 +10,16 @@ const agg_origin_filter = "agg_origin";
 const agg_destination_filter = "agg_destination";
 const agg_origin_default = 33;
 const agg_destination_default = 33;
+const agg_max = 2630;
 const multiselect_agg = 2630;
 const dist_graph_agg = 1250;
 var rings = {};
 var map;
+var dist_chart;
 var geo;
 var rings_layer;
 var data = { true: {}, false: {} };
-var distances = {};
+var distributions = { true: {}, false: {} };
 var clicked_layers = [];
 var top10 = [];
 var popup;
@@ -25,9 +27,10 @@ var is_home = true;
 var is_rings = false;
 var is_control = false;
 var agg_group_switches = {
-	switch_multiselect: false,
+	switch_multiselect: map_id == 1 ? false : true,
 	switch_dist_graph: false
 };
+var is_merged = true;
 var reader = new jsts.io.GeoJSONReader();
 var writer = new jsts.io.GeoJSONWriter();
 var wktwriter = new jsts.io.WKTWriter();
@@ -54,10 +57,217 @@ function initializeMap() {
 
 	createInfoControl();
 	createLegendControl();
-	createDistanceGraph();
+	createDistributionGraph();
 	createLoaderControl();
 	initializeLegendFilters();
 	$('#switch-language-' + currentLang).toggleClass('checked');
+}
+
+function unsafeCopy(obj) {
+	return JSON.parse(JSON.stringify(obj));
+}
+
+function createInfoControl() {
+	/**
+	 * Create the info control containing the current polygon information
+	 */
+	info = L.control({ position: 'topleft' });
+	info.onAdd = function (map) {
+		this.div = L.DomUtil.create('div', 'info');
+		return this.div;
+	};
+	info.addTo(map);
+
+	info.update = function (feature) {
+		if (!feature.properties) {
+			this.div.innerHTML = "";
+			this.div.setAttribute('style', 'display: none');
+			return;
+		}
+		this.div.setAttribute('style', 'display: block');
+		var local_name = name_dict[feature.properties['ID']][currentLang];
+		var name = local_name.length > 35 ? local_name.slice(0, 35) + '...' : local_name;
+		var pop = 0;
+		for (var i of clicked_layers)
+			pop += geo.getLayer(i).feature.properties['Over8Pop'];
+		var travels = 0;
+		var total_distance = 0;
+		var radius = { 0: feature.properties['passengers'], 10: 0, 20: 0, 50: 0 };
+		geo.eachLayer(function (layer) {
+			if (layer.feature.properties['distance'] <= 10)
+				radius[10] += layer.feature.properties['passengers'];
+			else if (layer.feature.properties['distance'] <= 20)
+				radius[20] += layer.feature.properties['passengers'];
+			else if (layer.feature.properties['distance'] <= 50)
+				radius[50] += layer.feature.properties['passengers'];
+			travels += layer.feature.properties['passengers'];
+			total_distance += layer.feature.properties['passengers'] * layer.feature.properties['distance'];
+		});
+		if (travels == 0)
+			travels = 1;
+		for (var i in radius)
+			radius[i] = radius[i] / parseFloat(travels);
+		var html = '<div dir=' + LANG[currentLang].props.direction + ' align=' + LANG[currentLang].props.alignment + '>' + LANG[currentLang].Traffic_area + ' <b>#' + feature.properties['ID'] + '</b>, ' + name + '<br>';
+		if (clicked_layers.length == 1) {
+			html += LANG[currentLang].Traveled_km + ' <b>' + parseInt(total_distance) + '</b> ' + LANG[currentLang].Km_traveled + LANG[currentLang].Average_of + ' <b>' +
+				(travels == 0 ? '</b>0 ' + LANG[currentLang].Km + '<br>' : parseInt(total_distance / travels) + '</b> ' + LANG[currentLang].Km + ' ' + LANG[currentLang].Per_travel + '<br>');
+		}
+		if (pop == null || pop == 0)
+			html += LANG[currentLang].Citizens_over_the_age + ' 8:<br><b>';
+		else
+			html += '<b>' + pop + '</b> ' + LANG[currentLang].Citizens_over_the_age_of + ' 8, ' + LANG[currentLang].Of_whom + ':<br><b>';
+		html += parseInt(100 * radius[0]) + '%</b> ' + LANG[currentLang].Remain_in_the_traffic_area + '<br>' +
+			'<d style="color: #eb4334"><b>' + parseInt(100 * radius[10]) + '%</b></d> ' + LANG[currentLang].Remain_within_10 + '<br>' +
+			'<d style="color: #345feb"><b>' + parseInt(100 * (radius[10] + radius[20])) + '%</b></d> ' + LANG[currentLang].Remain_within_20 + '<br>' +
+			'<d style="color: #22d457"><b>' + parseInt(100 * (radius[10] + radius[20] + radius[50])) + '%</b></d> ' + LANG[currentLang].Remain_within_50 + '</div>';
+		this.div.innerHTML = html;
+	};
+}
+
+function createLegendControl() {
+	/**
+	 * Create the legend control containing the legend and the control panel
+	 */
+	legend = L.control({position: 'bottomleft'});
+	legend.onAdd = function(map) {
+		this.div = L.DomUtil.create('div', 'd');
+		this.div.setAttribute('style', 'display: flex');
+		this.box = L.DomUtil.create('div', 'box', this.div);
+		
+		this.legend = L.DomUtil.create('div', 'legend', this.box);
+		this.legend.setAttribute('id', 'legend');
+		this.legend.innerHTML = getMapFiltersHtml();
+		
+		this.colors = L.DomUtil.create('div', 'colors', this.legend);
+		this.colors.innerHTML = getPassengersScaleHtml(passengers);
+		
+		this.table = L.DomUtil.create('div', 'table', this.box);
+		this.table.setAttribute('id', 'table');
+		this.table.setAttribute('dir', LANG[currentLang].props.direction);
+		
+		this.expand = L.DomUtil.create('div', 'expand', this.div);
+		this.expand.setAttribute('id', 'expand');
+		this.expand.setAttribute('onClick', 'toggleLegendTable()');
+		this.expand.innerHTML = '<i class="arrow right"></i>';
+		this.is_expanded = false;
+		return this.div;
+	};
+	legend.addTo(map);
+	this.table.style.height = document.getElementById('legend').offsetHeight;
+
+	legend.update = function() {
+		localizeText();
+		let selectedLanguageDirection = LANG[currentLang].props.direction;
+		let currentTableDirection = this.table.getAttribute('dir');
+		if (selectedLanguageDirection != currentTableDirection) {
+			this.table.setAttribute('dir', LANG[currentLang].props.direction);
+			toggleControlsDirection();
+		}
+		this.colors.innerHTML = getPassengersScaleHtml(passengers);
+		this.table.innerHTML = getTop10TableHtml();
+	}
+}
+
+function getPassengersScaleHtml(passengers) {
+	let html = '';
+	let labels = [0].concat(passengers);
+	for (let i = 1; i < labels.length; i++) {
+		html += '<div style="height: 1.5em"><i style="background: ' + getColor(labels[i] + 1, false, true) + '"></i> ' +
+				labels[i] + (labels[i + 1] ? '&ndash;' + labels[i + 1] : '+') + '</div>';
+	}
+	return html;
+}
+
+function toggleLegendTable() {
+	/**
+	 * Change the buttons style when a button in the legend control is clicked
+	 * @param {String/Integer} id The button ID
+	 */
+	legend.update();
+	if (legend.is_expanded) {
+		document.getElementById("table").style.maxWidth = "0px";
+		document.getElementById("legend").style.borderRight = "0";
+		document.getElementById("legend").style.borderRadius = "5px";
+		document.getElementById("expand").innerHTML = '<i class="arrow right"></i>';
+	}
+	else {
+		document.getElementById("table").style.maxWidth = "1000px";
+		document.getElementById("legend").style.borderRight = "1px solid #cccccc";
+		document.getElementById("legend").style.borderRadius = "5px 0px 0px 5px";
+		document.getElementById("expand").innerHTML = '<i class="arrow left"></i>';
+	}
+	legend.is_expanded = !legend.is_expanded;
+}
+
+function getTop10TableHtml() {
+	const MaxNameLength = 25;
+	let html = '<table id="top10"><tr>' +
+					"<th style='width: 50px'>" + LANG[currentLang].Traffic_area_number + "</th>" + 
+					'<th>' + LANG[currentLang].Traffic_area_name + '</th>' + 
+					"<th style='width: 50px'>" + LANG[currentLang].Aerial_Distance + "</th>" + 
+					'<th style="width: 30px">' + LANG[currentLang].Amount_of_travel + '</th></tr>';
+	for (let i in top10) {
+		let properties = geo.getLayer(top10[i]).feature.properties;
+		let local_name = name_dict[properties['ID']][currentLang];
+		let short_name = local_name.length > MaxNameLength 
+						? local_name.slice(0, MaxNameLength) + '...' 
+						: local_name;
+		html += '<tr><td>' + properties['ID'] + '</td>' + 
+					'<td>' + short_name + '</td>' + 
+					'<td>' + parseInt(properties['distance'] * 1000) + '</td>' + 
+					'<td>' + properties['passengers'] + '</td></tr>';
+	}
+	return html + '</table>';
+}
+
+function createDistributionGraph() {
+	graph = L.control({position: 'topright'});
+	graph.onAdd = function(map) {
+		this.div = L.DomUtil.create('div', 'graph');
+		this.div.setAttribute('style', 'display: none');
+		this.div.innerHTML = getDistributionGraphHtml();
+		return this.div;
+	};
+	graph.addTo(map);
+
+	graph.update = function(show, is_checked) {
+		this.div.setAttribute('style', show ? 'display: block' : 'display: none');
+		this.div.innerHTML = getDistributionGraphHtml(is_checked);
+	}
+}
+
+function getDistributionGraphHtml(is_checked) {
+	return '<div class="bg-white">' +
+				'<div class="padding-5">' + 
+					'<input type="checkbox" id="toggle-dist-graph" ' + (is_checked ? 'checked' : '') + '/>' +
+					'<label for="toggle-dist-graph">' + LANG[currentLang].Toggle_graph_view + '</label>' +
+				'</div>' +
+				'<div id="dist_chart" style="width: 500px; height: 300px"></div>' +
+			'</div>';
+}
+
+function createLoaderControl() {
+	/**
+	 * Create the loader control while the client loads data from the server
+	 */
+	loader = L.control({ position: 'topright' });
+	loader.onAdd = function (map) {
+		this.div = L.DomUtil.create('div', 'loader');
+		this.is_open = false;
+		return this.div;
+	}
+	loader.addTo(map);
+
+	loader.open = function () {
+		if (!this.is_open)
+			this.div.innerHTML = '<div class="loading-wheel"></div>';
+		this.is_open = true;
+	}
+
+	loader.close = function () {
+		this.div.innerHTML = '';
+		this.is_open = false;
+	}
 }
 
 function initializeLegendFilters() {
@@ -66,11 +276,22 @@ function initializeLegendFilters() {
 	restyleMap(false);
 }
 
+function applyFilter(filter, newValue) {
+	let current_filter = document.getElementById(filter+map_filters[filter]);
+	current_filter.style.color = 'black';
+	current_filter.style.backgroundColor = '#ccc';
+
+	let selected_filter = document.getElementById(filter+newValue);
+	selected_filter.style.color = 'white';
+	selected_filter.style.backgroundColor = '#2196F3';
+
+	map_filters[filter] = newValue;
+}
+
 function resetMapView() {
 	clicked_layers = [];
 	rings = { 10: [], 20: [], 50: [] };
 	info.update({});
-	graph.update(false);
 	updateMapAggregation(true, false);
 }
 
@@ -78,8 +299,17 @@ function updateMapAggregation(update_origin, recalc_rings = true) {
 	if (!update_origin && clicked_layers.length == 0)
 		return;
 
-	let agg_origin_level = is_home ? map_filters.agg_origin : map_filters.agg_destination;
-	let agg_destination_level = is_home ? map_filters.agg_destination : map_filters.agg_origin;	
+	let agg_origin_level = agg_max;
+	let agg_destination_level = agg_max;
+	if (map_filters.agg_origin && map_filters.agg_destination) {
+		if (is_home) {
+			agg_origin_level = map_filters.agg_origin;
+			agg_destination_level = map_filters.agg_destination;	
+		} else {
+			agg_origin_level = map_filters.agg_destination;
+			agg_destination_level = map_filters.agg_origin;	
+		}
+	}
 	let has_origin = aggregations[agg_origin_level];
 	let has_destination = aggregations[agg_destination_level];
 	
@@ -101,17 +331,9 @@ function reloadMapLayers(update_origin, agg_origin, agg_destination) {
 				? unsafeCopy(aggregations[agg_destination]) 
 				: unsafeCopy(aggregations[agg_origin]);
 
-	let clicked_polys = clicked_layers.map((id) => geo.getLayer(id).feature);
 	let clicked_polys_ids;
-
-	if (update_origin) {
-		clicked_polys_ids = clicked_polys.map(l => l.properties.related[agg_origin]);
-		if (agg_origin != agg_destination) {
-			let clicked_origin = 
-				unsafeCopy(aggregations[agg_origin].features.filter(f => clicked_polys_ids.includes(f.properties.ID)));
-			polygons.features.unshift.apply(polygons.features, clicked_origin)
-		}
-	} else {
+	if (!update_origin) {
+		let clicked_polys = clicked_layers.map((id) => geo.getLayer(id).feature);
 		clicked_polys_ids = clicked_polys.map(l => l.properties.ID);
 		if (agg_origin != agg_destination)
 			polygons.features.unshift.apply(polygons.features, clicked_polys);
@@ -124,16 +346,12 @@ function reloadMapLayers(update_origin, agg_origin, agg_destination) {
 	map.removeLayer(geo);
 	geo = L.geoJSON(polygons, { onEachFeature: onEachFeature }).addTo(map);
 	geo.setStyle(style);
-	if (clicked_polys_ids.length) {
+	if (clicked_polys_ids) {
 		geo.eachLayer(function (layer) {
 			if (clicked_polys_ids.includes(layer.feature.properties.ID))
 				clicked_layers.push(geo.getLayerId(layer));
 		});
 	}
-}
-
-function unsafeCopy(obj) {
-	return JSON.parse(JSON.stringify(obj));
 }
 
 async function loadAggregatedPolygonsAsync(aggregation_level) {
@@ -240,12 +458,14 @@ function calcRings() {
 	 */
 	var center = [];
 	for (var i in clicked_layers) {
-		center.push(turf.point(geo.getLayer(clicked_layers[i]).feature.properties['center']));
+		let l = geo.getLayer(clicked_layers[i]).feature.properties;
+		center.push(turf.point(l['center']));
 	}
 
 	var collections = { 10: [], 20: [], 50: [] };
 	geo.eachLayer(function (layer) {
-		var cur_center = turf.point(layer.feature.properties['center']);
+		let f = layer.feature.properties;
+		var cur_center = turf.point(f['center']);
 		var min_distance = 9999;
 		for (var i in center) {
 			var cur_distance = turf.distance(center[i], cur_center);
@@ -275,7 +495,7 @@ function unionRings(collections) {
 			var ring_collection = rings[prev_level[i]].map((r) => reader.read(r.toGeoJSON().geometry));
 			var  collection = new jsts.geom.GeometryCollection(ring_collection.concat(collections[i]), factory);
 			
-			if (!isValid(collection))
+			if (!isValidCollection(collection))
 				collection = collection.buffer(0);
 			
 			var union = writer.write(new jsts.operation.union.UnaryUnionOp(collection).union()).coordinates;
@@ -294,7 +514,7 @@ function unionRings(collections) {
 	}
 }
 
-function isValid(collection) {
+function isValidCollection(collection) {
 	var isValidOp = new jsts.operation.valid.IsValidOp(collection);
 	return isValidOp.isValid();
 }
@@ -305,8 +525,9 @@ function restyleMapLayers() {
 		layer.setStyle(style(layer.feature, clicked_layers.includes(geo.getLayerId(layer))));
 		layer.bringToFront();
 	});
-	for (var i in clicked_layers)
+	for (var i in clicked_layers) {
 		geo.getLayer(clicked_layers[i]).bringToFront();
+	}
 }
 
 function redrawRings(){
@@ -366,7 +587,7 @@ function getColor(p, is_clicked = false, is_legend = false) {
 	 * @return {String} The polygon color
 	 */
 	if (is_clicked && !is_legend)
-		return '';//p = clicked_layers.map((a) => geo.getLayer(a).feature.properties['passengers']).reduce((a, b) => a + b);
+		p = clicked_layers.map((a) => geo.getLayer(a).feature.properties['passengers']).reduce((a, b) => a + b);
 	if ((is_home && !is_clicked) || (!is_home && is_clicked)) {
 		return p > passengers[7] ? '#800026' :
 			    p > passengers[6] ? '#bd0026' :
@@ -395,7 +616,7 @@ function style(feature, is_clicked = false) {
 	 * @return {Object} The polygon style
 	 */
 	let fill = getColor(feature.properties['passengers'], is_clicked);
-	let fillOpacity = fill == '' ? 0 :
+	let fillOpacity = !shouldFillPolygonBg(is_clicked) ? 0 :
 					  fill == '#ffffff' ? 0.5 : 0.7;
 	return {
 		fillColor: fill,
@@ -403,6 +624,12 @@ function style(feature, is_clicked = false) {
 		color: is_clicked ? polygon_colors.border_clicked : polygon_colors.border_default,
 		fillOpacity: fillOpacity
 	};
+}
+
+function shouldFillPolygonBg(is_clicked) {
+	if (is_home)
+		return !is_clicked || map_filters.agg_origin >= map_filters.agg_destination;
+	return !is_clicked || map_filters.agg_origin <= map_filters.agg_destination;
 }
 
 function onEachFeature(feature, layer) {
@@ -503,8 +730,7 @@ function onPolygonClick(feature) {
 	 * Change the map when a polygon is clicked
 	 * @param {Feature} feature The polygon feature
 	 */
-	let agg_levels_match = map_filters.agg_origin == map_filters.agg_destination;
-	if (!agg_levels_match && clicked_layers.length)
+	if (!isSelectionAllowed())
 		return;
 
 	let clicked_id = geo.getLayerId(feature.target);
@@ -529,56 +755,106 @@ function onPolygonClick(feature) {
 		restyleMap();
 }
 
+function isSelectionAllowed() {
+	let agg_levels_match = map_filters.agg_origin == map_filters.agg_destination;
+	return agg_levels_match || !clicked_layers.length;
+}
+
 function showDistGraph(layer_id) {
-	if (!distances[layer_id]) {
-		var layer = geo.getLayer(layer_id);
-		var id = layer.feature.properties["ID"];
+	let id = geo.getLayer(layer_id).feature.properties["ID"];
+	if (!distributions[is_home][id]) {
 		$.ajax({
 			url: '/cgi-bin/server.py',
 			type: 'get',
 			data: {
-				'request': 'DISTANCES',
-				'clicked_id': id
+				'request': 'DISTRIBUTIONS',
+				'clicked_id': id,
+				'is_origin': is_home
 			},
+			dataType: 'json',
 			success: function (response) {
-				// TODO: should return numbers
-				distances[layer_id] = response.map(row => row.map(e => parseFloat(e)));
-				graph.update(true);
+				distributions[is_home][id] = toDistArray(response);
+				graph.update(true, is_merged);
 				google.charts.load('current', {'packages':['corechart']});
-				google.charts.setOnLoadCallback(() => drawChart(layer_id));
+				google.charts.setOnLoadCallback(() => drawChart(is_merged));
 			},
 			error: function(xhr, status, error) {
 				alert(status);
 			}
 		});
 	} else {
-		graph.update(true);
+		graph.update(true, is_merged);
+		drawChart(is_merged);
 	}
 }
 
-function drawChart(id) {
-	let raw = [['Destination', 'Total', 
-	'1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12',
-	'13', '14', '15', '16', '17', '18', '19', '20', '21', '22', '23', '24']];
-	for (const arr in distances[id]) {
-		for (const arr2 in distances[id][arr]) {
-			const el = distances[id][arr][arr2];
+function toDistArray(response_json) {
+	var converted = response_json.map(arr => arr.map(el => parseFloat(el)));
+	for (let i = 0; i < converted.length; i++) {
+		const arr = converted[i];
+		const total = arr[1]; // 0 - destination id, 1 - total trips
+		for (let j = 2; j < arr.length; j++)
+			arr[j] *= total;
+	}
+	return converted;
+}
+
+function drawChart(is_combined = true) {
+	var clicked_id = geo.getLayer(clicked_layers[0]).feature.properties['ID'];
+	var dt = new google.visualization.DataTable();
+	dt.addColumn('number', 'Hour');
+	let selectedDist = distributions[is_home][clicked_id];
+	let rows;
+	if (is_combined) {
+		dt.addColumn('number', 'Trips');
+		rows = getMerged(selectedDist);
+	} else {
+		for (let i = 0; i < selectedDist.length; i++) {
+			const dist = selectedDist[i];
+			dt.addColumn('number', dist[0]);
 		}
-	}
-	var data = new google.visualization.DataTable();
-	data.addColumn('number', 'Day');
-	data.addColumn('number', 'Guardians of the Galaxy');
-	data.addColumn('number', 'The Avengers');
-	data.addColumn('number', 'Transformers: Age of Extinction');
+		rows = getSeparated(selectedDist);
+	} 
 
-	data.addRows([[1],[2],[3],[4],[5],[6],[7],[8],[9],[10],[11],[12],
-		[13],[14],[15],[16],[17],[18],[19],[20],[21],[22],[23],[24]
-	]);
-
-	var chart = new google.visualization.LineChart(document.getElementById('dist_graph'));
-	chart.draw(data, options);
+	dt.addRows(rows);
+	dist_chart = new google.visualization.LineChart(document.getElementById('dist_chart'));
+	dist_chart.draw(dt, getOptions());
 }
 
+function getMerged(dist) {
+	let merged = transpose(dist);
+	merged.splice(0, 2);
+	for (let i = 0; i < merged.length; i++)
+		merged[i] = [i + 1, Math.round(merged[i].reduce((a, b) => a + b))];
+	return merged;
+}
+
+let transpose = m => m[0].map((x,i) => m.map(x => x[i]));
+
+function getSeparated(dist) {
+	let separated = transpose(dist);
+	separated.splice(0, 2);
+	for (let i = 0; i < separated.length; i++)
+		separated[i].unshift(i + 1);
+	return separated;
+}
+
+function getOptions() {
+	return {
+		title: 'Distribution',
+		legend: { position: 'none' },
+		hAxis: {
+			title: 'Time of day (hour)',
+			viewWindow: { min: 0 },
+			gridlines: { count: 8 }
+		},
+		vAxis: {
+			title: 'Trips',
+			viewWindow: { min: 0 },
+			gridlines: { count: 5 }
+		}
+	};
+}
 
 window.onload = function () {
 	// Open the dialogue and ask for password
@@ -632,8 +908,15 @@ $('a[id^="switch-language-"]').click(function () {
 $('#switch_home').click(function() {
 	is_home = !is_home;
 	legend.update();
-	let update_origin = map_filters.agg_origin != map_filters.agg_destination;
-	updateMapAggregation(update_origin, is_rings);
+	let agg_origin = map_filters.agg_origin;
+	if (agg_origin) {
+		applyFilter(agg_origin_filter, map_filters.agg_destination);
+		applyFilter(agg_destination_filter, agg_origin);
+	}
+	updateMapAggregation(false, is_rings);
+	
+	if (agg_group_switches.switch_dist_graph)
+		showDistGraph(clicked_layers[0]);
 });
 
 $('#switch_rings').click(function() {
@@ -643,28 +926,42 @@ $('#switch_rings').click(function() {
 });
 
 $('#switch_multiselect').click(function(e) {
-	applySwitch(e.target.id, multiselect_agg);
+	applySwitch(e.target.id, multiselect_agg, false);
 });
 
 $('#switch_dist_graph').click(function(e) {
-	applySwitch(e.target.id, dist_graph_agg);
+	let show_graph = clicked_layers.length != 0 && e.target.checked;
+	applySwitch(e.target.id, dist_graph_agg, show_graph);
 });
 
-function applySwitch(switch_name, aggregation) {
-	let show_dist_graph = !agg_group_switches[switch_name];
-	toggleAggreationFilters(show_dist_graph);
+function applySwitch(switch_name, aggregation, checked) {
+	let current_checked = !agg_group_switches[switch_name];
+	toggleAggreationFilters(current_checked);
 	
-	for (const sname in agg_group_switches)
+	for (const sname in agg_group_switches) {
 		agg_group_switches[sname] = false;
-	agg_group_switches[switch_name] = show_dist_graph;
+	}
+	agg_group_switches[switch_name] = current_checked;
 
-	if (show_dist_graph 
+	if (current_checked 
 		&& !(map_filters.agg_origin == aggregation 
 		&& map_filters.agg_origin == map_filters.agg_destination)) {
 		applyFilter(agg_origin_filter, aggregation);
 		applyFilter(agg_destination_filter, aggregation);
+		resetMapView();
 	}
-	resetMapView();
+	if (checked && clicked_layers.length) {
+		showDistGraph(clicked_layers[0]);
+	} else {
+		graph.update(false, is_merged);
+	}
+}
+
+function toggleAggreationFilters(disabled) {
+	$('.filters-aggregation > button').each((i, btn) => {
+		btn.disabled = disabled;
+		btn.title = btn.disabled ? LANG[currentLang].Disable_multiselect : "";
+	});
 }
 
 $('input[type=checkbox].agg-group').click((e) => {
@@ -700,5 +997,11 @@ function originAggregationChanged(filter) {
 }
 
 $("button#aggregation-reset").click(function () {
+	graph.update(false, is_merged);
 	resetMapView();
+});
+
+$(document).on("click", "input[type=checkbox]#toggle-dist-graph", function() {
+	is_merged = !is_merged;
+	showDistGraph(clicked_layers[0]);
 });

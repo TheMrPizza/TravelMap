@@ -421,3 +421,16 @@ input:checked + .slider:before {
     -webkit-user-select: none;
     line-height: normal;
 }
+
+.bg-white {
+    background-color: white;
+}
+
+#toggle-dist-graph {
+    vertical-align: top;
+    cursor: pointer;
+}
+
+.padding-5 {
+    padding: 5px 5px 0px 5px;
+}

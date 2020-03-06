@@ -171,10 +171,3 @@ function toggleSwitchAlignment() {
 		});
 	});
 }
-
-function toggleAggreationFilters(disabled) {
-	$('.filters-aggregation > button').each((i, btn) => {
-		btn.disabled = disabled;
-		btn.title = btn.disabled ? LANG[currentLang].Disable_multiselect : "";
-	});
-}

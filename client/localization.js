@@ -71,8 +71,9 @@ LANG = {
         Remain_within_50: "remains within 50km radius",
         Reset: "Reset",
         Multiselect: "Multiselect",
-        Show_dist_graph: "Show distance graph",
-        Disable_multiselect: "Disable multiselect or dist graph to allow aggregation levels"
+        Show_dist_graph: "Show distribution",
+        Disable_multiselect: "Disable multiselect or dist graph to allow aggregation levels",
+        Toggle_graph_view: "Toggle graph view"
     },
     "he": {
 		props: {
@@ -117,7 +118,8 @@ LANG = {
         Remain_within_50: "נשארים ברדיוס של 50 ק\"מ",
         Reset: "לאפס",
         Multiselect: "Multiselect",
-        Show_dist_graph: "Show distance graph",
-        Disable_multiselect: "Disable multiselect or dist graph to allow aggregation levels"
+        Show_dist_graph: "Show distribution",
+        Disable_multiselect: "Disable multiselect or dist graph to allow aggregation levels",
+        Toggle_graph_view: "Toggle graph view"
     }
 };
