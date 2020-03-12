@@ -318,8 +318,10 @@ function updateMapAggregation(update_origin, recalc_rings = true) {
 		restyleMap(recalc_rings);
 	} else {
 		let aggregation_level = has_origin ? agg_destination_level : agg_origin_level;
+		loader.open();
 		loadAggregatedPolygonsAsync(aggregation_level)
 			.then(() => {
+				loader.close();
 				reloadMapLayers(update_origin, agg_origin_level, agg_destination_level);
 				restyleMap(recalc_rings);
 			});
@@ -762,6 +764,7 @@ function isSelectionAllowed() {
 
 function showDistGraph(layer_id) {
 	let id = geo.getLayer(layer_id).feature.properties["ID"];
+	loader.open();
 	if (!distributions[is_home][id]) {
 		$.ajax({
 			url: '/cgi-bin/server.py',
@@ -777,14 +780,17 @@ function showDistGraph(layer_id) {
 				graph.update(true, is_merged);
 				google.charts.load('current', {'packages':['corechart']});
 				google.charts.setOnLoadCallback(() => drawChart(is_merged));
+				loader.close();
 			},
 			error: function(xhr, status, error) {
 				alert(status);
+				loader.close();
 			}
 		});
 	} else {
 		graph.update(true, is_merged);
 		drawChart(is_merged);
+		loader.close();
 	}
 }
 

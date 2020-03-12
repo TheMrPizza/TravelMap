@@ -50,11 +50,11 @@ elif request == 'DISTRIBUTIONS':
     is_origin = cgi.FieldStorage().getvalue('is_origin')
     
     if (is_origin == 'true'):
-        data_fpath = '/home/users/web/b337/moo.ifelcoil/map2/OD1250_DailyDistOrderOrigin.csv'
-        offset_fpath = '/home/users/web/b337/moo.ifelcoil/map2/offsets_origin.csv'
+        data_fpath = '/home/users/web/b337/moo.ifelcoil/map2/data/OD1250_DailyDistOrderOrigin.csv'
+        offset_fpath = '/home/users/web/b337/moo.ifelcoil/map2/data/offsets_origin.csv'
     else:
-        data_fpath = '/home/users/web/b337/moo.ifelcoil/map2/OD1250_DailyDistOrderDestination.csv'
-        offset_fpath = '/home/users/web/b337/moo.ifelcoil/map2/offsets_destination.csv'
+        data_fpath = '/home/users/web/b337/moo.ifelcoil/map2/data/OD1250_DailyDistOrderDestination.csv'
+        offset_fpath = '/home/users/web/b337/moo.ifelcoil/map2/data/offsets_destination.csv'
 
     offset = 0
     with open(offset_fpath, 'r') as f:
