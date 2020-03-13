@@ -73,7 +73,11 @@ LANG = {
         Multiselect: "Multiselect",
         Show_dist_graph: "Show distribution",
         Disable_multiselect: "Disable multiselect or dist graph to allow aggregation levels",
-        Toggle_graph_view: "Toggle graph view"
+        Toggle_graph_view: "Toggle graph view",
+        Hour: "Hour",
+        Trips: "Trips",
+        Time_of_day_hour: "Time of day (hour)",
+        Distribution: "Distribution"
     },
     "he": {
 		props: {
@@ -120,6 +124,10 @@ LANG = {
         Multiselect: "Multiselect",
         Show_dist_graph: "Show distribution",
         Disable_multiselect: "Disable multiselect or dist graph to allow aggregation levels",
-        Toggle_graph_view: "Toggle graph view"
+        Toggle_graph_view: "Toggle graph view",
+        Hour: "Hour",
+        Trips: "Trips",
+        Time_of_day_hour: "Time of day (hour)",
+        Distribution: "Distribution"
     }
 };

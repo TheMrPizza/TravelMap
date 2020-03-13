@@ -157,10 +157,10 @@ function createLegendControl() {
 
 	legend.update = function() {
 		localizeText();
-		let selectedLanguageDirection = LANG[currentLang].props.direction;
-		let currentTableDirection = this.table.getAttribute('dir');
-		if (selectedLanguageDirection != currentTableDirection) {
-			this.table.setAttribute('dir', LANG[currentLang].props.direction);
+		let currentTextDirection = this.table.getAttribute('dir');
+		let newTextDirection = LANG[currentLang].props.direction;
+		if (newTextDirection != currentTextDirection) {
+			this.table.setAttribute('dir', newTextDirection);
 			toggleControlsDirection();
 		}
 		this.colors.innerHTML = getPassengersScaleHtml(passengers);
@@ -618,7 +618,7 @@ function style(feature, is_clicked = false) {
 	 * @return {Object} The polygon style
 	 */
 	let fill = getColor(feature.properties['passengers'], is_clicked);
-	let fillOpacity = !shouldFillPolygonBg(is_clicked) ? 0 :
+	let fillOpacity = !shouldFillPolygon(is_clicked) ? 0 :
 					  fill == '#ffffff' ? 0.5 : 0.7;
 	return {
 		fillColor: fill,
@@ -628,7 +628,7 @@ function style(feature, is_clicked = false) {
 	};
 }
 
-function shouldFillPolygonBg(is_clicked) {
+function shouldFillPolygon(is_clicked) {
 	if (is_home)
 		return !is_clicked || map_filters.agg_origin >= map_filters.agg_destination;
 	return !is_clicked || map_filters.agg_origin <= map_filters.agg_destination;
@@ -808,11 +808,11 @@ function toDistArray(response_json) {
 function drawChart(is_combined = true) {
 	var clicked_id = geo.getLayer(clicked_layers[0]).feature.properties['ID'];
 	var dt = new google.visualization.DataTable();
-	dt.addColumn('number', 'Hour');
+	dt.addColumn('number', LANG[currentLang].Hour);
 	let selectedDist = distributions[is_home][clicked_id];
 	let rows;
 	if (is_combined) {
-		dt.addColumn('number', 'Trips');
+		dt.addColumn('number', LANG[currentLang].Trips);
 		rows = getMerged(selectedDist);
 	} else {
 		for (let i = 0; i < selectedDist.length; i++) {
@@ -847,15 +847,15 @@ function getSeparated(dist) {
 
 function getOptions() {
 	return {
-		title: 'Distribution',
+		title: LANG[currentLang].Distribution,
 		legend: { position: 'none' },
 		hAxis: {
-			title: 'Time of day (hour)',
+			title: LANG[currentLang].Time_of_day_hour,
 			viewWindow: { min: 0 },
 			gridlines: { count: 8 }
 		},
 		vAxis: {
-			title: 'Trips',
+			title: LANG[currentLang].Trips,
 			viewWindow: { min: 0 },
 			gridlines: { count: 5 }
 		}
@@ -864,12 +864,12 @@ function getOptions() {
 
 window.onload = function () {
 	// Open the dialogue and ask for password
-	//document.documentElement.style.display = 'none';
+	document.documentElement.style.display = 'none';
 	var password;
-	// do {
-	// 	password = prompt('Please enter the password');
-	// } while (password == null);
-	// checkPassword(password);
+	do {
+		password = prompt('Please enter the password');
+	} while (password == null);
+	checkPassword(password);
 }
 
 window.onblur = function () {
